@@ -1,0 +1,78 @@
+# ==============================================================================
+# Ansible Static Inventory Example (Topology Demonstration)
+# Groups: Edge Gateways (ARM64), Database Cluster, CDC Stream Brokers, Monitoring
+# ==============================================================================
+
+all:
+  children:
+    # --------------------------------------------------------------------------
+    # Edge Computing Nodes (Orange Pi / NanoPi / Gateways)
+    # --------------------------------------------------------------------------
+    edge_gateways:
+      hosts:
+        edge-node-alpha:
+          ansible_host: 192.168.10.11
+          ansible_user: edgeadmin
+          arch: aarch64
+          device_model: "OrangePi Zero 3"
+          gateway_zone: "Sector-North"
+          zabbix_agent_enabled: true
+        edge-node-beta:
+          ansible_host: 192.168.10.12
+          ansible_user: edgeadmin
+          arch: aarch64
+          device_model: "OrangePi Zero 3"
+          gateway_zone: "Sector-South"
+          zabbix_agent_enabled: true
+      vars:
+        ansible_python_interpreter: /usr/bin/python3
+        proxy_http_port: 80
+        proxy_https_port: 443
+
+    # --------------------------------------------------------------------------
+    # Distributed Data Tier (MongoDB Primary + Replica)
+    # --------------------------------------------------------------------------
+    database_cluster:
+      children:
+        database_primary:
+          hosts:
+            db-primary-node:
+              ansible_host: 192.168.10.20
+              ansible_user: devops
+              mongo_role: primary
+              retention_days: 60
+        database_historic:
+          hosts:
+            db-historic-sink:
+              ansible_host: 192.168.10.21
+              ansible_user: devops
+              mongo_role: historic_sink
+              retention_days: 365
+
+    # --------------------------------------------------------------------------
+    # Real-Time Streaming & CDC Brokers
+    # --------------------------------------------------------------------------
+    cdc_brokers:
+      hosts:
+        kafka-broker-01:
+          ansible_host: 192.168.10.30
+          ansible_user: devops
+          kafka_connect_port: 8083
+
+    # --------------------------------------------------------------------------
+    # Observability & Monitoring Tier
+    # --------------------------------------------------------------------------
+    monitoring_servers:
+      hosts:
+        monitor-server:
+          ansible_host: 192.168.10.40
+          ansible_user: devops
+          prometheus_port: 9090
+          grafana_port: 3000
+
+  vars:
+    ansible_connection: ssh
+    ansible_port: 22
+    system_timezone: "America/Guayaquil"
+    docker_log_max_size: "50m"
+    docker_log_max_files: "5"

@@ -1,0 +1,136 @@
+# ==============================================================================
+# Change Data Capture (CDC) & Event-Driven Data Streaming Stack
+# Topology: Primary Mongo -> Kafka (Debezium CDC) -> Historical Mongo (Audit Sink)
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # Zookeeper Coordinator
+  # ----------------------------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: cdc_zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - cdc_stream_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ----------------------------------------------------------------------------
+  # Apache Kafka Broker
+  # ----------------------------------------------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: cdc_kafka_broker
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - cdc_stream_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "3"
+
+  # ----------------------------------------------------------------------------
+  # Kafka Connect with Debezium MongoDB CDC Plugin
+  # ----------------------------------------------------------------------------
+  kafka_connect:
+    image: debezium/connect:2.5
+    container_name: cdc_kafka_connect
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    ports:
+      - "${KAFKA_CONNECT_PORT:-8083}:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: cdc_connect_configs
+      OFFSET_STORAGE_TOPIC: cdc_connect_offsets
+      STATUS_STORAGE_TOPIC: cdc_connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      ENABLE_DEBEZIUM_SCRIPTING: "true"
+    networks:
+      - cdc_stream_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "3"
+
+  # ----------------------------------------------------------------------------
+  # Historical Destination Database (Long-term Sink, Retention 1 Year)
+  # ----------------------------------------------------------------------------
+  database_historic:
+    image: mongo:7.0
+    container_name: database_historic
+    restart: unless-stopped
+    command: ["--replSet", "rs_historic", "--bind_ip_all"]
+    environment:
+      TZ: "${TZ:-America/Guayaquil}"
+      MONGO_INITDB_ROOT_USERNAME: "${MONGO_ROOT_USER:-admin}"
+      MONGO_INITDB_ROOT_PASSWORD: "${MONGO_ROOT_PASSWORD:-SuperSecurePassword2026!}"
+      MONGO_INITDB_DATABASE: "${MONGO_DATABASE:-telemetry_production}_history"
+    ports:
+      - "${MONGO_HISTORIC_PORT:-27019}:27017"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - historic_db_data:/data/db
+    networks:
+      - cdc_stream_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1.5G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "40m"
+        max-file: "3"
+
+networks:
+  cdc_stream_net:
+    driver: bridge
+    name: cdc_stream_net
+
+volumes:
+  historic_db_data:
+    name: historic_db_data

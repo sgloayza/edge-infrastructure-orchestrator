@@ -1,0 +1,16 @@
+---
+# Defaults for kafka_cdc role
+kafka_connect_host: "127.0.0.1"
+kafka_connect_port: 8083
+kafka_connect_url: "http://{{ kafka_connect_host }}:{{ kafka_connect_port }}"
+
+source_mongo_host: "192.168.10.20"
+source_mongo_port: 27017
+source_database_name: telemetry_production
+
+sink_mongo_host: "192.168.10.21"
+sink_mongo_port: 27017
+sink_database_name: telemetry_production_history
+
+connector_source_name: "debezium-mongodb-source"
+connector_sink_name: "mongodb-history-sink"

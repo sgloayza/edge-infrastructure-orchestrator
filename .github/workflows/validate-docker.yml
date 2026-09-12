@@ -1,0 +1,24 @@
+name: Docker Stacks Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-compose:
+    name: Validate Docker Compose Stacks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Copy Example Environment
+        run: cp docker/env.example docker/.env
+
+      - name: Validate Production Compose Stack
+        run: docker compose -f docker/compose/docker-compose.prod.yml --env-file docker/.env config
+
+      - name: Validate CDC & Kafka Streaming Stack
+        run: docker compose -f docker/compose/docker-compose.cdc.yml --env-file docker/.env config

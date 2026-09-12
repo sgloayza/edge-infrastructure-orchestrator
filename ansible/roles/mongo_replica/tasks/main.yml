@@ -1,0 +1,57 @@
+---
+# Tasks for mongo_replica role
+- name: Create MongoDB data and script directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0750'
+  loop:
+    - "{{ mongo_data_dir }}"
+    - "{{ mongo_data_dir }}/db"
+    - "{{ mongo_data_dir }}/scripts"
+
+- name: Deploy MongoDB container with Replica Set enabled
+  community.docker.docker_container:
+    name: "{{ mongo_container_name }}"
+    image: "{{ mongo_image }}"
+    state: started
+    restart_policy: unless-stopped
+    command: ["--replSet", "{{ mongo_replset_name }}", "--bind_ip_all"]
+    ports:
+      - "{{ mongo_port }}:27017"
+    volumes:
+      - "{{ mongo_data_dir }}/db:/data/db"
+      - "{{ mongo_data_dir }}/scripts:/scripts"
+      - /etc/localtime:/etc/localtime:ro
+    env:
+      MONGO_INITDB_ROOT_USERNAME: "{{ mongo_admin_user }}"
+      MONGO_INITDB_ROOT_PASSWORD: "{{ mongo_admin_password }}"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+    log_driver: "json-file"
+    log_options:
+      max-size: "50m"
+      max-file: "5"
+
+- name: Render MongoDB replica set and TTL initialization script
+  ansible.builtin.template:
+    src: init_replica.js.j2
+    dest: "{{ mongo_data_dir }}/scripts/init_replica.js"
+    mode: '0640'
+
+- name: Wait for MongoDB service to start accepting connections
+  ansible.builtin.wait_for:
+    port: "{{ mongo_port }}"
+    delay: 5
+    timeout: 60
+
+- name: Execute replica set initialization and index configuration inside container
+  ansible.builtin.command: >
+    docker exec {{ mongo_container_name }}
+    mongosh -u {{ mongo_admin_user }} -p {{ mongo_admin_password }} --authenticationDatabase admin
+    /scripts/init_replica.js
+  register: mongo_init_output
+  changed_when: "'Initializing replica set' in mongo_init_output.stdout"

@@ -1,0 +1,28 @@
+// MongoDB Replica Set & Index Retention Initialization Script
+// Managed by Ansible role mongo_replica
+
+try {
+  const status = rs.status();
+  print("Replica set already initialized: " + status.set);
+} catch (err) {
+  print("Initializing replica set {{ mongo_replset_name }}...");
+  rs.initiate({
+    _id: "{{ mongo_replset_name }}",
+    members: [
+      { _id: 0, host: "127.0.0.1:{{ mongo_port }}" }
+    ]
+  });
+}
+
+// Switch to telemetry database
+const targetDb = db.getSiblingDB("{{ mongo_database_name }}");
+
+// Ensure TTL Index for automatic data lifecycle retention ({{ retention_days }} days)
+// Preserves storage space on edge gateways
+const expireSeconds = {{ retention_days }} * 24 * 60 * 60;
+targetDb.telemetry_events.createIndex(
+  { "timestamp": 1 },
+  { expireAfterSeconds: expireSeconds, background: true }
+);
+
+print("Configured TTL index with retention: " + expireSeconds + " seconds.");

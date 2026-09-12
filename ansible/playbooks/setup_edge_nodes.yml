@@ -1,0 +1,20 @@
+---
+# ==============================================================================
+# Playbook: Provisioning and Hardening of Edge Computing Nodes (Gateways)
+# Target: edge_gateways group (ARM64 / Linux)
+# ==============================================================================
+
+- name: Provision and Harden Edge Gateways
+  hosts: edge_gateways
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: common_hardening
+      tags: [hardening, system]
+
+    - role: edge_gateway
+      tags: [gateway, proxy, nginx]
+
+    - role: telemetry_monitor
+      tags: [monitoring, telemetry, watchdog]

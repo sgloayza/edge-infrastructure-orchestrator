@@ -1,0 +1,31 @@
+#!/bin/bash
+# ==============================================================================
+# Edge Hardware Watchdog: Proactive RAM Leak & Disk Saturation Prevention
+# Automated by Ansible role telemetry_monitor
+# ==============================================================================
+
+set -euo pipefail
+
+LOG_FILE="{{ monitor_dir }}/watchdog.log"
+RAM_THRESHOLD={{ ram_warning_threshold_percent }}
+DISK_THRESHOLD={{ disk_warning_threshold_percent }}
+
+# Calculate RAM usage percentage
+RAM_TOTAL=$(free -m | awk '/^Mem:/{print $2}')
+RAM_USED=$(free -m | awk '/^Mem:/{print $3}')
+RAM_PERCENT=$(( 100 * RAM_USED / RAM_TOTAL ))
+
+# Calculate Disk usage percentage on root
+DISK_PERCENT=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
+
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+if [ "$RAM_PERCENT" -ge "$RAM_THRESHOLD" ]; then
+    echo "[$TIMESTAMP] [WARNING] High RAM usage detected: ${RAM_PERCENT}% (${RAM_USED}MB / ${RAM_TOTAL}MB)" >> "$LOG_FILE"
+    # Log top 5 memory consuming processes for post-mortem analysis
+    ps aux --sort=-%mem | head -n 6 >> "$LOG_FILE"
+fi
+
+if [ "$DISK_PERCENT" -ge "$DISK_THRESHOLD" ]; then
+    echo "[$TIMESTAMP] [WARNING] Root filesystem disk usage high: ${DISK_PERCENT}%" >> "$LOG_FILE"
+fi

@@ -1,0 +1,42 @@
+---
+# Tasks for telemetry_monitor role
+- name: Ensure monitor directory exists
+  ansible.builtin.file:
+    path: "{{ monitor_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Prometheus Node Exporter container
+  community.docker.docker_container:
+    name: node_exporter
+    image: "{{ node_exporter_image }}"
+    state: started
+    restart_policy: unless-stopped
+    network_mode: host
+    pid_mode: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+
+- name: Install system hardware watchdog script
+  ansible.builtin.template:
+    src: system_monitor.sh.j2
+    dest: "{{ monitor_dir }}/watchdog.sh"
+    mode: '0750'
+
+- name: Schedule periodic hardware watchdog cron job
+  ansible.builtin.cron:
+    name: "Edge Hardware Health Watchdog"
+    minute: "*/5"
+    job: "{{ monitor_dir }}/watchdog.sh"
+    state: "{{ 'present' if enable_periodic_healthcheck_cron else 'absent' }}"

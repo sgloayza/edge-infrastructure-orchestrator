@@ -1,0 +1,26 @@
+---
+# ==============================================================================
+# Playbook: Deployment of Distributed MongoDB and Kafka Real-time CDC Pipeline
+# Target: database_cluster and cdc_brokers
+# ==============================================================================
+
+- name: Configure Database Nodes and Hardening
+  hosts: database_cluster
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: common_hardening
+      tags: [hardening, system]
+
+    - role: mongo_replica
+      tags: [database, mongodb, replica]
+
+- name: Deploy Kafka CDC Connectors and Streaming Sink
+  hosts: cdc_brokers
+  become: true
+  gather_facts: false
+
+  roles:
+    - role: kafka_cdc
+      tags: [streaming, kafka, cdc, debezium]

@@ -1,0 +1,7 @@
+# System resource limits configured by Ansible
+* soft nofile {{ nofile_limit }}
+* hard nofile {{ nofile_limit }}
+* soft nproc {{ nproc_limit }}
+* hard nproc {{ nproc_limit }}
+root soft nofile {{ nofile_limit }}
+root hard nofile {{ nofile_limit }}

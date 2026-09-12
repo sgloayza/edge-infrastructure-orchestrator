@@ -1,0 +1,15 @@
+{
+  "name": "{{ connector_sink_name }}",
+  "config": {
+    "connector.class": "com.mongodb.kafka.connect.MongoSinkConnector",
+    "tasks.max": "1",
+    "topics.regex": "cdc_telemetry.*",
+    "connection.uri": "mongodb://{{ sink_mongo_host }}:{{ sink_mongo_port }}",
+    "database": "{{ sink_database_name }}",
+    "collection": "historical_audit_log",
+    "change.data.capture.handler": "com.mongodb.kafka.connect.sink.cdc.debezium.mongodb.MongoDbHandler",
+    "document.id.strategy": "com.mongodb.kafka.connect.sink.processor.id.strategy.BsonOidStrategy",
+    "writemodel.strategy": "com.mongodb.kafka.connect.sink.writemodel.strategy.UpdateOneBusinessKeyTimestampStrategy",
+    "max.batch.size": "100"
+  }
+}

@@ -1,0 +1,44 @@
+---
+# Tasks for common_hardening role
+- name: Ensure timezone is properly configured
+  ansible.builtin.file:
+    src: "/usr/share/zoneinfo/{{ system_timezone }}"
+    dest: /etc/localtime
+    state: link
+    force: true
+
+- name: Write timezone file
+  ansible.builtin.copy:
+    content: "{{ system_timezone }}\n"
+    dest: /etc/timezone
+    mode: '0644'
+
+- name: Apply security limits for file descriptors and processes
+  ansible.builtin.template:
+    src: limits.conf.j2
+    dest: /etc/security/limits.d/99-ansible-limits.conf
+    mode: '0644'
+
+- name: Ensure /etc/docker directory exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
+
+- name: Configure Docker daemon with log rotation policy
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    mode: '0644'
+  notify: Restart Docker
+
+- name: Ensure fundamental utility packages are installed
+  ansible.builtin.package:
+    name:
+      - curl
+      - htop
+      - iotop
+      - jq
+      - rsync
+      - ca-certificates
+    state: present

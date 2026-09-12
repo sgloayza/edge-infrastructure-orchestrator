@@ -1,0 +1,9 @@
+---
+# Defaults for common_hardening role
+system_timezone: "America/Guayaquil"
+docker_log_driver: "json-file"
+docker_log_max_size: "50m"
+docker_log_max_files: "5"
+nofile_limit: 65535
+nproc_limit: 32768
+enable_automatic_ntp: true

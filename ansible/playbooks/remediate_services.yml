@@ -1,0 +1,33 @@
+---
+# ==============================================================================
+# Playbook: Automated Incident Remediation and Self-Healing
+# Handles: Ghost client purging, memory leak mitigation, and service recovery
+# ==============================================================================
+
+- name: Execute Automated Edge Self-Healing
+  hosts: edge_gateways
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check system memory status
+      ansible.builtin.command: free -m
+      register: memory_status
+      changed_when: false
+
+    - name: Display memory allocation
+      ansible.builtin.debug:
+        msg: "{{ memory_status.stdout_lines }}"
+
+    - name: Inspect and purge orphan / ghost client sessions
+      ansible.builtin.shell: >
+        docker ps -q --filter "status=exited" | xargs -r docker rm -v
+      register: purge_result
+      changed_when: purge_result.stdout != ""
+
+    - name: Restart edge proxy if healthcheck is failing
+      community.docker.docker_container:
+        name: edge_proxy
+        state: started
+        restart: true
+      when: trigger_proxy_restart | default(false) | bool

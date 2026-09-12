@@ -1,0 +1,47 @@
+---
+# Tasks for kafka_cdc role
+- name: Wait for Kafka Connect REST API to become ready
+  ansible.builtin.uri:
+    url: "{{ kafka_connect_url }}/connectors"
+    method: GET
+    status_code: 200
+  register: connect_health
+  until: connect_health.status == 200
+  retries: 30
+  delay: 5
+
+- name: Render Debezium MongoDB Source Connector configuration
+  ansible.builtin.template:
+    src: debezium_mongo_source.json.j2
+    dest: /tmp/debezium_mongo_source.json
+    mode: '0640'
+
+- name: Render MongoDB History Sink Connector configuration
+  ansible.builtin.template:
+    src: mongo_sink_history.json.j2
+    dest: /tmp/mongo_sink_history.json
+    mode: '0640'
+
+- name: Register or update Debezium CDC Source Connector
+  ansible.builtin.uri:
+    url: "{{ kafka_connect_url }}/connectors/{{ connector_source_name }}/config"
+    method: PUT
+    body_format: json
+    body: "{{ lookup('template', 'debezium_mongo_source.json.j2') | from_json | json_query('config') }}"
+    status_code: [200, 201]
+
+- name: Register or update MongoDB History Sink Connector
+  ansible.builtin.uri:
+    url: "{{ kafka_connect_url }}/connectors/{{ connector_sink_name }}/config"
+    method: PUT
+    body_format: json
+    body: "{{ lookup('template', 'mongo_sink_history.json.j2') | from_json | json_query('config') }}"
+    status_code: [200, 201]
+
+- name: Validate active connectors status
+  ansible.builtin.uri:
+    url: "{{ kafka_connect_url }}/connectors"
+    method: GET
+    return_content: true
+  register: active_connectors
+  failed_when: "connector_source_name not in active_connectors.content"

@@ -1,0 +1,8 @@
+---
+# Defaults for telemetry_monitor role
+node_exporter_port: 9100
+node_exporter_image: "prom/node-exporter:v1.8.2"
+monitor_dir: /opt/telemetry-monitor
+ram_warning_threshold_percent: 85
+disk_warning_threshold_percent: 80
+enable_periodic_healthcheck_cron: true

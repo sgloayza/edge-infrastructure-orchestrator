@@ -1,0 +1,44 @@
+name: Lint & Syntax Quality Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ansible-quality:
+    name: Ansible Syntax & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Ansible & Validation Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core flake8 yamllint
+
+      - name: Validate Python Dynamic Inventory Syntax
+        run: |
+          python -m py_compile ansible/inventory/dynamic/issue_inventory.py
+          flake8 ansible/inventory/dynamic/issue_inventory.py --max-line-length=120 --ignore=E501
+
+      - name: Execute Dynamic Inventory Test
+        run: |
+          python ansible/inventory/dynamic/issue_inventory.py --list
+
+      - name: Check Ansible Playbooks Syntax
+        working-directory: ansible
+        run: |
+          export ANSIBLE_CONFIG=./ansible.cfg
+          ansible-playbook playbooks/site.yml --syntax-check -i inventory/hosts.example.yml
+          ansible-playbook playbooks/setup_edge_nodes.yml --syntax-check -i inventory/hosts.example.yml
+          ansible-playbook playbooks/setup_mongo_cdc.yml --syntax-check -i inventory/hosts.example.yml
+          ansible-playbook playbooks/remediate_services.yml --syntax-check -i inventory/hosts.example.yml

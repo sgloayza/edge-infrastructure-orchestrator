@@ -1,0 +1,39 @@
+---
+# Tasks for edge_gateway role
+- name: Ensure edge gateway configuration directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ edge_gateway_dir }}"
+    - "{{ edge_gateway_dir }}/nginx"
+    - "{{ edge_gateway_dir }}/logs"
+
+- name: Render Nginx reverse proxy configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ edge_gateway_dir }}/nginx/nginx.conf"
+    mode: '0644'
+  notify: Reload Nginx Container
+
+- name: Deploy or update Nginx reverse proxy container
+  community.docker.docker_container:
+    name: "{{ nginx_container_name }}"
+    image: "{{ nginx_image }}"
+    state: started
+    restart_policy: unless-stopped
+    network_mode: host
+    volumes:
+      - "{{ edge_gateway_dir }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "{{ edge_gateway_dir }}/logs:/var/log/nginx"
+      - /etc/localtime:/etc/localtime:ro
+    log_driver: "json-file"
+    log_options:
+      max-size: "20m"
+      max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:{{ edge_http_port }}/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

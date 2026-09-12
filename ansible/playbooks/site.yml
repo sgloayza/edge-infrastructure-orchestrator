@@ -1,0 +1,17 @@
+---
+# ==============================================================================
+# Master Orchestration Playbook: Edge Infrastructure as Code
+# Coordinates: Hardening, Gateway Services, Distributed Databases, and CDC Pipeline
+# ==============================================================================
+
+- name: Import Edge Gateway Provisioning Workflow
+  ansible.builtin.import_playbook: setup_edge_nodes.yml
+  tags: [edge, gateways]
+
+- name: Import Distributed MongoDB and Kafka CDC Workflow
+  ansible.builtin.import_playbook: setup_mongo_cdc.yml
+  tags: [data, cdc, database]
+
+- name: Import Self-Healing and Remediation Workflow
+  ansible.builtin.import_playbook: remediate_services.yml
+  tags: [remediation, maintenance]
