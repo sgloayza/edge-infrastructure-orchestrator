@@ -135,7 +135,10 @@ edge-infrastructure-orchestrator/
 │   └── quickstart.md               # Step-by-step local testing instructions
 │
 ├── scripts/
-│   ├── demo_cdc.sh                 # Interactive live CDC streaming simulation demo
+│   ├── cdc_worker.js               # Lightweight real-time CDC sync daemon (Zero-Data-Loss)
+│   ├── demo_cdc.sh                 # Interactive CLI simulation demo of the CDC pipeline
+│   ├── start_compass_demo.sh       # Spins up dual Mongo nodes + CDC daemon for MongoDB Compass
+│   ├── stop_compass_demo.sh        # Tears down demo environment and frees host memory
 │   └── verify_cluster.sh           # Automated healthcheck and diagnostic utility
 │
 ├── .gitignore
@@ -285,6 +288,32 @@ playbook: playbooks/site.yml
     tasks:
       Inspect and purge orphan / ghost client sessions
       Restart edge proxy if healthcheck is failing
+```
+
+### 4. Interactive Graphical Live Demo (MongoDB Compass + CDC Daemon)
+
+To evaluate data resilience and real-time CDC replication using a Graphical User Interface (GUI) via **MongoDB Compass**:
+
+```bash
+# 1. Start interactive database cluster and real-time CDC daemon
+./scripts/start_compass_demo.sh
+```
+
+Open **MongoDB Compass** on your workstation and connect to both instances:
+1. **Primary Operational Node (`localhost:27027`):**
+   * **URI:** `mongodb://admin:SuperSecurePassword2026!@localhost:27027/?authSource=admin`
+   * **Database / Collection:** `telemetry_production` ➡️ `telemetry_live`
+2. **Historical Audit Sink (`localhost:27028`):**
+   * **URI:** `mongodb://admin:SuperSecurePassword2026!@localhost:27028/?authSource=admin`
+   * **Database / Collection:** `telemetry_history` ➡️ `telemetry_audit`
+
+#### ⚡ Interactive Verification Steps:
+* **Real-Time Replication:** Insert any document in `telemetry_live` (port `27027`). Refresh `telemetry_audit` (port `27028`) and observe the document synchronized in **~500ms** marked with `"cdc_op": "INSERT"` and `"cdc_synced": true`.
+* **Zero Data Loss Incident Test:** Delete the document from the primary operational node (`27027`). Upon refreshing the historic node (`27028`), **the document remains preserved intact**, demonstrating immutable compliance retention with `"cdc_op": "DELETE_PRESERVED"`.
+
+```bash
+# 2. Tear down the ephemeral test environment when finished
+./scripts/stop_compass_demo.sh
 ```
 
 ---

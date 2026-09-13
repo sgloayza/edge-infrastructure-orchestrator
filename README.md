@@ -135,7 +135,10 @@ edge-infrastructure-orchestrator/
 │   └── quickstart.md               # Guía paso a paso de ejecución y pruebas locales
 │
 ├── scripts/
-│   ├── demo_cdc.sh                 # Demostración interactiva en vivo del pipeline CDC
+│   ├── cdc_worker.js               # Demonio ligero de replicación CDC en tiempo real (Zero-Data-Loss)
+│   ├── demo_cdc.sh                 # Demostración interactiva por consola del pipeline CDC
+│   ├── start_compass_demo.sh       # Levanta topología Mongo dual + demonio CDC para MongoDB Compass
+│   ├── stop_compass_demo.sh        # Destruye el entorno de prueba y libera la memoria
 │   └── verify_cluster.sh           # Utilidad de diagnóstico y comprobación de salud
 │
 ├── .gitignore
@@ -285,6 +288,32 @@ playbook: playbooks/site.yml
     tasks:
       Inspect and purge orphan / ghost client sessions
       Restart edge proxy if healthcheck is failing
+```
+
+### 4. Demostración Gráfica Interactiva en Vivo (MongoDB Compass + Demonio CDC)
+
+Para evaluar la resiliencia y la replicación en tiempo real con una interfaz gráfica (GUI) en **MongoDB Compass**:
+
+```bash
+# 1. Iniciar el entorno interactivo de bases de datos y el motor CDC
+./scripts/start_compass_demo.sh
+```
+
+Abre **MongoDB Compass** en tu máquina y conéctate a las dos instancias:
+1. **Base Primaria Operativa (`localhost:27027`):**
+   * **URI:** `mongodb://admin:SuperSecurePassword2026!@localhost:27027/?authSource=admin`
+   * **Base / Colección:** `telemetry_production` ➡️ `telemetry_live`
+2. **Base Histórica de Auditoría (`localhost:27028`):**
+   * **URI:** `mongodb://admin:SuperSecurePassword2026!@localhost:27028/?authSource=admin`
+   * **Base / Colección:** `telemetry_history` ➡️ `telemetry_audit`
+
+#### ⚡ Pruebas Interactivas que Puedes Realizar:
+* **Inserción en Vivo:** Agrega cualquier documento en `telemetry_live` (puerto `27027`). Refresca `telemetry_audit` (puerto `27028`) y verás cómo el demonio CDC lo sincroniza en **~500ms** etiquetándolo con `"cdc_op": "INSERT"` y `"cdc_synced": true`.
+* **Prueba de Pérdida Cero de Datos:** Borra el documento en el nodo primario (`27027`). Al refrescar el nodo histórico (`27028`), **el documento NO se borra**, demostrando la retención regulatoria de auditoría con la marca `"cdc_op": "DELETE_PRESERVED"`.
+
+```bash
+# 2. Apagar el entorno efímero al finalizar la prueba
+./scripts/stop_compass_demo.sh
 ```
 
 ---
