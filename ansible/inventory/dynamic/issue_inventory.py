@@ -9,7 +9,6 @@ This script demonstrates:
 3. Concurrency Control: Mutex locking mechanism to avoid concurrent runs on the same node.
 """
 
-import sys
 import json
 import argparse
 from typing import Dict, Any
