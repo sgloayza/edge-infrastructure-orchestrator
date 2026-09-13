@@ -110,7 +110,8 @@ edge-infrastructure-orchestrator/
 ├── .gitignore
 ├── LICENSE
 ├── README.en.md
-└── README.md
+├── README.md
+└── requirements.txt
 ```
 
 ---

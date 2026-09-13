@@ -1,0 +1,4 @@
+# Core dependencies for Edge Infrastructure Orchestrator testing & linting
+ansible-core>=2.16.0
+flake8>=7.0.0
+yamllint>=1.35.0

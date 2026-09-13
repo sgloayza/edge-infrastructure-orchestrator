@@ -19,11 +19,12 @@ jobs:
         with:
           python-version: "3.12"
           cache: "pip"
+          cache-dependency-path: "requirements.txt"
 
-      - name: Install Ansible & Validation Tools
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ansible-core flake8 yamllint
+          pip install -r requirements.txt
 
       - name: Validate Python Dynamic Inventory Syntax
         run: |
