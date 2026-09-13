@@ -1,53 +1,58 @@
-# Quickstart & Verification Guide
+# 🚀 Guía Rápida de Inicio y Verificación
 
-This guide provides step-by-step instructions to run and validate the **Edge Infrastructure Orchestrator** in a local development environment (Linux / WSL 2) or on dedicated staging servers.
+🌐 **Idioma / Language:** **Español 🇪🇸** | [Switch to English 🇺🇸](quickstart.en.md)
+
+Esta guía proporciona instrucciones paso a paso para ejecutar, probar y validar el **Edge Infrastructure Orchestrator** en un entorno de desarrollo local (Linux / WSL 2) o en servidores de pruebas.
 
 ---
 
-## 1. Prerequisites
+## 1. Requisitos Previos
 
-Ensure your environment has the following tools installed:
-* **Linux / WSL 2** (Ubuntu 22.04 or 24.04 recommended)
+Asegúrate de contar con las siguientes herramientas instaladas:
+* **Linux / WSL 2** (Ubuntu 22.04 o 24.04 recomendado)
 * **Python 3.10+**
 * **Ansible 2.15+** (`pip install ansible-core`)
-* **Docker Engine & Docker Compose v2**
+* **Motor Docker & Docker Compose v2**
 
 ---
 
-## 2. Environment Setup
+## 2. Configuración del Entorno
 
-Clone the repository and copy the environment configuration:
+Clona el repositorio y copia la plantilla de configuración de variables de entorno:
 
 ```bash
-# Navigate to the project root
+# Navegar a la raíz del proyecto
 cd edge-infrastructure-orchestrator
 
-# Create local environment configuration from template
+# Crear archivo .env a partir de la plantilla
 cp docker/env.example docker/.env
 ```
 
-Review and adjust variables in `docker/.env` if you want to customize port allocations or database credentials.
+Puedes revisar y personalizar las variables en `docker/.env` si deseas cambiar puertos o credenciales de prueba.
 
 ---
 
-## 3. Validating the Ansible Orchestration Engine
+## 3. Validación del Motor de Orquestación de Ansible
 
-Verify that all playbooks pass syntax validation:
+Verifica que todos los playbooks pasen la comprobación de sintaxis sin errores:
 
 ```bash
 cd ansible
 
-# Check master orchestration playbook
+# 1. Validar playbook maestro
 ansible-playbook playbooks/site.yml --syntax-check -i inventory/hosts.example.yml
 
-# Check edge gateway provisioning playbook
+# 2. Validar aprovisionamiento de gateways Edge
 ansible-playbook playbooks/setup_edge_nodes.yml --syntax-check -i inventory/hosts.example.yml
 
-# Check distributed MongoDB & Kafka CDC playbook
+# 3. Validar despliegue de base de datos distribuida y Kafka CDC
 ansible-playbook playbooks/setup_mongo_cdc.yml --syntax-check -i inventory/hosts.example.yml
+
+# 4. Validar playbook de remediación y autorrecuperación
+ansible-playbook playbooks/remediate_services.yml --syntax-check -i inventory/hosts.example.yml
 ```
 
-Test the dynamic inventory script:
+Probar la ejecución del plugin de inventario dinámico:
 
 ```bash
 python3 inventory/dynamic/issue_inventory.py --list
@@ -55,56 +60,52 @@ python3 inventory/dynamic/issue_inventory.py --list
 
 ---
 
-## 4. Launching the Local Docker Stacks
+## 4. Ejecución de Demostraciones Visuales en Vivo
 
-### A. Launching the Production Hardened Stack
-This stack runs the Edge Nginx reverse proxy, Telemetry Web API, and Primary MongoDB:
-
-```bash
-cd ../docker/compose
-docker compose -f docker-compose.prod.yml --env-file ../.env up -d
-```
-
-Verify running containers:
-```bash
-docker compose -f docker-compose.prod.yml ps
-```
-
-Test healthcheck endpoint:
-```bash
-curl http://localhost:80/healthz
-# Expected output: OK
-```
-
-### B. Launching the Kafka CDC & Historical Sink Stack
-To test the real-time event streaming pipeline:
-
-```bash
-docker compose -f docker-compose.cdc.yml --env-file ../.env up -d
-```
-
-Verify that Kafka Connect is accepting connector registrations:
-```bash
-curl -s http://localhost:8083/connectors | jq .
-```
-
----
-
-## 5. Running Automated Healthchecks
-
-Run the automated diagnostic utility from the project root:
+### A. Diagnóstico Integral del Clúster (`verify_cluster.sh`)
+Verifica la salud y compatibilidad de Docker, Compose, Ansible, Python y el plugin de inventario:
 
 ```bash
 ./scripts/verify_cluster.sh
 ```
 
----
-
-## 6. Teardown
-
-To stop and remove all local containers and network bridges:
+### B. Simulación Interactiva del Pipeline CDC (`demo_cdc.sh`)
+Muestra paso a paso en consola cómo Debezium y Kafka capturan eventos en caliente y cómo la base histórica preserva el 100% de los datos ante un borrado accidental en el nodo primario:
 
 ```bash
-docker compose -f docker-compose.prod.yml down -v
-docker compose -f docker-compose.cdc.yml down -v
+./scripts/demo_cdc.sh
+```
+
+### C. Demostración Gráfica Interactiva en MongoDB Compass
+Permite conectarte desde tu entorno gráfico de Windows y ver la replicación en vivo entre dos bases de datos:
+
+```bash
+# 1. Levantar instancias de MongoDB y el demonio CDC en tiempo real
+./scripts/start_compass_demo.sh
+```
+
+Abre **MongoDB Compass** y crea dos conexiones:
+* **MongoDB Primario (Operativo):**  
+  `mongodb://admin:SuperSecurePassword2026!@localhost:27027/?authSource=admin`  
+  *(Base: `telemetry_production` ➡️ Colección: `telemetry_live`)*
+* **MongoDB Histórico (Auditoría Inmutable):**  
+  `mongodb://admin:SuperSecurePassword2026!@localhost:27028/?authSource=admin`  
+  *(Base: `telemetry_history` ➡️ Colección: `telemetry_audit`)*
+
+> 💡 **Prueba interactiva:** Si agregas cualquier documento en `telemetry_live` (27027), haz clic en **Refresh** (🔄) en `telemetry_audit` (27028) y verás cómo el demonio CDC lo replica al instante. Si lo borras en el primario, en el histórico se conserva intacto con la marca de auditoría legal.
+
+```bash
+# 2. Destruir el entorno y liberar memoria al finalizar
+./scripts/stop_compass_demo.sh
+```
+
+---
+
+## 5. Limpieza de Stacks Completos de Docker
+
+Si levantaste los stacks completos de producción o CDC con Docker Compose, puedes detenerlos y limpiar volúmenes con:
+
+```bash
+docker compose -f docker/compose/docker-compose.prod.yml down -v
+docker compose -f docker/compose/docker-compose.cdc.yml down -v
 ```
