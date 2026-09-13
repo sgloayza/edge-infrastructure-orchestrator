@@ -10,7 +10,7 @@
 [![CI Quality Gate](https://github.com/sgloayza/edge-infrastructure-orchestrator/actions/workflows/lint.yml/badge.svg)](https://github.com/sgloayza/edge-infrastructure-orchestrator/actions)
 [![Docker Stacks](https://github.com/sgloayza/edge-infrastructure-orchestrator/actions/workflows/validate-docker.yml/badge.svg)](https://github.com/sgloayza/edge-infrastructure-orchestrator/actions)
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Live Simulator](https://img.shields.io/badge/Live_Simulator-Demo_Interactivo_Web-06B6D4?style=for-the-badge&logo=react&logoColor=white)](https://sgloayza.github.io/portfolio-web/#projects)
+[![Live Simulator](https://img.shields.io/badge/Live_Simulator-Demo_Interactivo_Web-06B6D4?style=for-the-badge&logo=react&logoColor=white)](https://sgloayza.github.io/portfolio-web/#/simulator)
 
 Un framework empresarial de **Infraestructura como Código (IaC)**, **Orquestación Dirigida por Eventos (EDA)** y **Streaming de Datos Resiliente (CDC)** diseñado para flotas de nodos de computación Edge distribuidos (Orange Pi / NanoPi / Gateways Linux) y clústeres de bases de datos de alta disponibilidad.
 
