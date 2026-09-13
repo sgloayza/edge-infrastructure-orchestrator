@@ -1,5 +1,7 @@
 # 🚀 Edge Infrastructure Orchestrator
 
+🌐 **Idioma / Language:** **Español 🇪🇸** | [Switch to English 🇺🇸](README.en.md)
+
 [![Ansible Core](https://img.shields.io/badge/Ansible-2.16%2B-EE0000?style=for-the-badge&logo=ansible&logoColor=white)](https://www.ansible.com/)
 [![Docker Compose](https://img.shields.io/badge/Docker-28.0%2B-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-CDC_Streaming-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)](https://kafka.apache.org/)
@@ -107,6 +109,7 @@ edge-infrastructure-orchestrator/
 │
 ├── .gitignore
 ├── LICENSE
+├── README.en.md
 └── README.md
 ```
 
