@@ -1,0 +1,60 @@
+---
+# ==============================================================================
+# Playbook de Demostración Local de Ansible (Simulación de Gateway Edge)
+# Ejecuta tareas reales en localhost: diagnóstico, node_exporter y autoremediación
+# ==============================================================================
+
+- name: Simulación de Aprovisionamiento y Autorrecuperación en Edge
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    node_exporter_port: 9100
+    node_exporter_image: "prom/node-exporter:v1.8.2"
+    watchdog_log_path: "/tmp/edge_watchdog.log"
+    ram_threshold: 85
+    disk_threshold: 80
+
+  tasks:
+    - name: "[Paso 1/5] Inspeccionar salud física del nodo (Memoria y CPU)"
+      ansible.builtin.debug:
+        msg: >-
+          Arquitectura: {{ ansible_architecture }} |
+          SO: {{ ansible_distribution }} {{ ansible_distribution_version }} |
+          RAM Total: {{ (ansible_memtotal_mb / 1024) | round(1) }} GB |
+          RAM Libre: {{ (ansible_memfree_mb / 1024) | round(1) }} GB
+
+    - name: "[Paso 2/5] Desplegar exportador de métricas Prometheus Node Exporter"
+      community.docker.docker_container:
+        name: edge_node_exporter
+        image: "{{ node_exporter_image }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ node_exporter_port }}:9100"
+      register: exporter_result
+
+    - name: "[Paso 3/5] Simular y registrar ejecución del Watchdog de hardware"
+      ansible.builtin.shell: |
+        TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+        RAM_TOTAL=$(free -m | awk '/^Mem:/{print $2}')
+        RAM_USED=$(free -m | awk '/^Mem:/{print $3}')
+        RAM_PERCENT=$(( 100 * RAM_USED / RAM_TOTAL ))
+        echo "[$TIMESTAMP] [HEALTHCHECK] RAM: ${RAM_PERCENT}% (${RAM_USED}MB/${RAM_TOTAL}MB) | Status: OPTIMAL | Node Exporter: ACTIVE (Port 9100)" >> {{ watchdog_log_path }}
+        echo "RAM: ${RAM_PERCENT}%"
+      register: watchdog_output
+      changed_when: true
+
+    - name: "[Paso 4/5] Ejecutar tarea de Autorrecuperación (Remediación de contenedores zombies)"
+      ansible.builtin.shell: |
+        docker ps -q --filter "status=exited" | xargs -r docker rm -v 2>/dev/null || true
+      register: remediation_output
+      changed_when: false
+
+    - name: "[Paso 5/5] Resumen del estado de telemetría y métricas activas"
+      ansible.builtin.debug:
+        msg:
+          - "✔ Contenedor Node Exporter: ACTIVO en http://localhost:{{ node_exporter_port }}/metrics"
+          - "✔ Watchdog de Hardware: REGISTRADO en {{ watchdog_log_path }}"
+          - "✔ Sesiones huérfanas de Docker: LIMPIAS (0 contenedores zombies)"

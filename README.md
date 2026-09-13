@@ -136,9 +136,11 @@ edge-infrastructure-orchestrator/
 │
 ├── scripts/
 │   ├── cdc_worker.js               # Demonio ligero de replicación CDC en tiempo real (Zero-Data-Loss)
+│   ├── demo_ansible_live.sh        # Ejecución en VIVO de Ansible + Prometheus (localhost:9100) + Watchdog
 │   ├── demo_cdc.sh                 # Demostración interactiva por consola del pipeline CDC
 │   ├── start_compass_demo.sh       # Levanta topología Mongo dual + demonio CDC para MongoDB Compass
-│   ├── stop_compass_demo.sh        # Destruye el entorno de prueba y libera la memoria
+│   ├── stop_ansible_demo.sh        # Detiene el exportador Prometheus y limpia logs locales
+│   ├── stop_compass_demo.sh        # Destruye el entorno de prueba de Mongo y libera la memoria
 │   └── verify_cluster.sh           # Utilidad de diagnóstico y comprobación de salud
 │
 ├── .gitignore
@@ -215,7 +217,50 @@ Validating Dynamic Inventory Plugin... [OK] issue_inventory.py executed successf
 All diagnostic checks completed successfully!
 ```
 
-### 2. Demostración en Vivo del Pipeline CDC y Protección de Auditoría (`./scripts/demo_cdc.sh`)
+### 2. Demostración en Vivo de Ansible: Aprovisionamiento y Self-Healing (`./scripts/demo_ansible_live.sh`)
+Ejecuta en tiempo real el playbook `playbooks/demo_local.yml` sobre tu máquina local, aprovisionando el exportador de métricas Prometheus y validando el watchdog guardián:
+```text
+$ ./scripts/demo_ansible_live.sh
+======================================================================
+  🤖 DEMOSTRACIÓN EN VIVO DE ANSIBLE: APROVISIONAMIENTO Y SELF-HEALING 
+  Orquestación de Nodos Edge + Prometheus Exporter + Watchdog Guardián 
+======================================================================
+
+[1/3] Ejecutando Playbook de Ansible con conexión local (Simulación Edge)...
+
+PLAY [Simulación de Aprovisionamiento y Autorrecuperación en Edge] *************
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+TASK [[Paso 1/5] Inspeccionar salud física del nodo (Memoria y CPU)] ***********
+ok: [localhost] => { "msg": "Arquitectura: x86_64 | SO: Ubuntu 24.04 | RAM Total: 15.5 GB | RAM Libre: 13.9 GB" }
+TASK [[Paso 2/5] Desplegar exportador de métricas Prometheus Node Exporter] ****
+changed: [localhost]
+TASK [[Paso 3/5] Simular y registrar ejecución del Watchdog de hardware] *******
+changed: [localhost]
+TASK [[Paso 4/5] Ejecutar tarea de Autorrecuperación (Remediación de contenedores zombies)] ***
+ok: [localhost]
+TASK [[Paso 5/5] Resumen del estado de telemetría y métricas activas] **********
+ok: [localhost] => {
+    "msg": [
+        "✔ Contenedor Node Exporter: ACTIVO en http://localhost:9100/metrics",
+        "✔ Watchdog de Hardware: REGISTRADO en /tmp/edge_watchdog.log",
+        "✔ Sesiones huérfanas de Docker: LIMPIAS (0 contenedores zombies)"
+    ]
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=6    changed=2    unreachable=0    failed=0
+
+✔ ¡Ejecución de Ansible completada exitosamente con código 0!
+
+📊 EVIDENCIAS VISUALES GENERADAS POR ANSIBLE:
+  1. Métricas de Prometheus en Vivo: Abre en tu navegador 👉 http://localhost:9100/metrics
+  2. Registro del Watchdog: [HEALTHCHECK] RAM: 7% | Status: OPTIMAL | Node Exporter: ACTIVE (Port 9100)
+  3. Contenedor Docker: edge_node_exporter activo en puerto 9100
+```
+*(Para detenerlo y limpiar el entorno: `./scripts/stop_ansible_demo.sh`)*
+
+### 3. Demostración en Vivo del Pipeline CDC y Protección de Auditoría (`./scripts/demo_cdc.sh`)
 ```text
 $ ./scripts/demo_cdc.sh
 ======================================================================

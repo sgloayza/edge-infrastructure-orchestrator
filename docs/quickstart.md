@@ -69,7 +69,20 @@ Verifica la salud y compatibilidad de Docker, Compose, Ansible, Python y el plug
 ./scripts/verify_cluster.sh
 ```
 
-### B. Simulación Interactiva del Pipeline CDC (`demo_cdc.sh`)
+### B. Ejecución en Vivo de Ansible + Prometheus (`demo_ansible_live.sh`)
+Ejecuta en tiempo real el playbook `playbooks/demo_local.yml`, despliega el exportador Prometheus Node Exporter en el puerto 9100 y corre el watchdog guardián:
+
+```bash
+# 1. Ejecutar demostración interactiva de Ansible
+./scripts/demo_ansible_live.sh
+
+# 2. Abrir métricas en vivo en tu navegador: http://localhost:9100/metrics
+
+# 3. Detener la demostración y limpiar el entorno cuando termines
+./scripts/stop_ansible_demo.sh
+```
+
+### C. Simulación Interactiva del Pipeline CDC (`demo_cdc.sh`)
 Muestra paso a paso en consola cómo Debezium y Kafka capturan eventos en caliente y cómo la base histórica preserva el 100% de los datos ante un borrado accidental en el nodo primario:
 
 ```bash

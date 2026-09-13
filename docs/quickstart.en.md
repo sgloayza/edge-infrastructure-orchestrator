@@ -64,12 +64,25 @@ python3 inventory/dynamic/issue_inventory.py --list
 ./scripts/verify_cluster.sh
 ```
 
-### B. Interactive Change Data Capture (CDC) CLI Simulation
+### B. Live Ansible Execution + Prometheus Metrics
+Executes the `playbooks/demo_local.yml` playbook in real-time, launches the Prometheus Node Exporter on port 9100, and triggers the hardware watchdog:
+
+```bash
+# 1. Run live interactive Ansible demo
+./scripts/demo_ansible_live.sh
+
+# 2. View live host metrics in browser: http://localhost:9100/metrics
+
+# 3. Stop demo container and clean up when done
+./scripts/stop_ansible_demo.sh
+```
+
+### C. Interactive Change Data Capture (CDC) CLI Simulation
 ```bash
 ./scripts/demo_cdc.sh
 ```
 
-### C. Live Graphical Demonstration in MongoDB Compass
+### D. Live Graphical Demonstration in MongoDB Compass
 ```bash
 # 1. Start dual MongoDB instances and real-time CDC daemon
 ./scripts/start_compass_demo.sh
