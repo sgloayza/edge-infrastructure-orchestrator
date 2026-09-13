@@ -11,4 +11,5 @@ RESET="\033[0m"
 
 echo "Deteniendo contenedores de demostración de MongoDB..."
 docker rm -f mongo_demo_primary mongo_demo_historic >/dev/null 2>&1 || true
+docker network rm mongo_demo_net >/dev/null 2>&1 || true
 echo -e "${GREEN}${BOLD}✔ Contenedores detenidos y memoria liberada correctamente.${RESET}"
