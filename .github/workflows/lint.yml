@@ -26,6 +26,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Install Ansible Collections
+        run: |
+          ansible-galaxy collection install -r ansible/requirements.yml
+
       - name: Validate Python Dynamic Inventory Syntax
         run: |
           python -m py_compile ansible/inventory/dynamic/issue_inventory.py

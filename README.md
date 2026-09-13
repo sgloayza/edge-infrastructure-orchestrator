@@ -78,6 +78,7 @@ edge-infrastructure-orchestrator/
 │
 ├── ansible/
 │   ├── ansible.cfg                 # Ajustes de rendimiento (pipelining, profile_tasks)
+│   ├── requirements.yml            # Colecciones de Ansible Galaxy (community.docker)
 │   ├── inventory/
 │   │   ├── dynamic/
 │   │   │   └── issue_inventory.py  # Inventario dinámico con patrón de doble estado y Mutex
