@@ -1,0 +1,169 @@
+# ==============================================================================
+# GitLab CI/CD Pipeline: Edge Infrastructure Orchestrator
+# Multi-stage CI/CD with Automated Semantic Versioning, Package Registry & Release
+# ==============================================================================
+
+stages:
+  - lint
+  - test
+  - package
+  - release
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DOCKER_DRIVER: overlay2
+
+cache:
+  paths:
+    - .cache/pip
+    - /root/.ansible/collections
+
+# ------------------------------------------------------------------------------
+# 1. STAGE: Lint & Code Quality
+# ------------------------------------------------------------------------------
+lint:ansible-and-python:
+  stage: lint
+  image: python:3.12-slim
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git gcc libffi-dev
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - ansible-galaxy collection install -r ansible/requirements.yml
+  script:
+    - echo "=== Validating Python Dynamic Inventory with flake8 ==="
+    - python -m py_compile ansible/inventory/dynamic/issue_inventory.py
+    - flake8 ansible/inventory/dynamic/issue_inventory.py --max-line-length=120 --ignore=E501
+    - echo "=== Testing Dynamic Inventory Execution ==="
+    - python ansible/inventory/dynamic/issue_inventory.py --list
+    - echo "=== Checking Ansible Playbook Syntax ==="
+    - cd ansible
+    - export ANSIBLE_CONFIG=./ansible.cfg
+    - ansible-playbook playbooks/site.yml --syntax-check -i inventory/hosts.example.yml
+    - ansible-playbook playbooks/setup_edge_nodes.yml --syntax-check -i inventory/hosts.example.yml
+    - ansible-playbook playbooks/setup_mongo_cdc.yml --syntax-check -i inventory/hosts.example.yml
+    - ansible-playbook playbooks/remediate_services.yml --syntax-check -i inventory/hosts.example.yml
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG
+
+# ------------------------------------------------------------------------------
+# 2. STAGE: Test & Docker Stacks Validation
+# ------------------------------------------------------------------------------
+test:docker-stacks:
+  stage: test
+  image: docker:27-cli
+  services:
+    - docker:27-dind
+  before_script:
+    - cp docker/env.example docker/.env
+  script:
+    - echo "=== Validating Production Compose Stack ==="
+    - docker compose -f docker/compose/docker-compose.prod.yml --env-file docker/.env config
+    - echo "=== Validating CDC & Kafka Streaming Stack ==="
+    - docker compose -f docker/compose/docker-compose.cdc.yml --env-file docker/.env config
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG
+
+# ------------------------------------------------------------------------------
+# 3. STAGE: Package Distribution Bundle & Publish to Registry
+# ------------------------------------------------------------------------------
+package:bundle:
+  stage: package
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache curl tar gzip coreutils sed
+  script:
+    # 1. Determinación de versión semántica limpia a partir del TAG o PIPELINE_IID
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        PKG_VERSION=$(echo "$CI_COMMIT_TAG" | sed 's/^v//')
+        IS_RELEASE=true
+      else
+        PKG_VERSION="0.1.0-dev.${CI_PIPELINE_IID}"
+        IS_RELEASE=false
+      fi
+      echo "Empaquetando artefacto de orquestación versión: ${PKG_VERSION}"
+
+    # 2. Empaquetar bundle distribuible (Playbooks, Roles, Inventory, Compose)
+    - ARCHIVE_NAME="edge-infrastructure-orchestrator-${PKG_VERSION}.tar.gz"
+    - mkdir -p dist
+    - tar --exclude='.git' --exclude='.github' --exclude='dist' -czvf "dist/${ARCHIVE_NAME}" ansible/ docker/ docs/ scripts/ requirements.txt LICENSE README.md
+    - cd dist
+    - sha256sum "${ARCHIVE_NAME}" > "${ARCHIVE_NAME}.sha256"
+    - cd ..
+
+    # 3. Publicar artefacto al GitLab Generic Package Registry
+    - |
+      echo "Subiendo bundle a GitLab Generic Package Registry..."
+      PACKAGE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/edge-infrastructure-orchestrator/${PKG_VERSION}"
+      
+      if [ -n "$CI_JOB_TOKEN" ] && [ -n "$CI_PROJECT_ID" ]; then
+        curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+             --upload-file "dist/${ARCHIVE_NAME}" \
+             "${PACKAGE_URL}/${ARCHIVE_NAME}"
+        
+        curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+             --upload-file "dist/${ARCHIVE_NAME}.sha256" \
+             "${PACKAGE_URL}/${ARCHIVE_NAME}.sha256"
+        echo "Artefacto publicado exitosamente en: ${PACKAGE_URL}/${ARCHIVE_NAME}"
+      else
+        echo "Modo local o sin credenciales de CI_JOB_TOKEN; guardando artefacto en almacenamiento local."
+      fi
+
+    # 4. Exportar variables para el job de release
+    - echo "PKG_VERSION=${PKG_VERSION}" >> build.env
+    - echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> build.env
+  artifacts:
+    name: "orchestrator-bundle-$CI_COMMIT_REF_SLUG"
+    paths:
+      - dist/
+    reports:
+      dotenv: build.env
+    expire_in: 30 days
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# ------------------------------------------------------------------------------
+# 4. STAGE: Automated Release Publication
+# ------------------------------------------------------------------------------
+release:automated:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - job: package:bundle
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/
+  script:
+    - echo "Generando Release oficial para versión ${CI_COMMIT_TAG} (Semver: ${PKG_VERSION})"
+  release:
+    name: "Release ${CI_COMMIT_TAG} — Production-Ready Edge Orchestration"
+    description: |
+      ## 🚀 Edge Infrastructure Orchestrator ${CI_COMMIT_TAG}
+      
+      Release generado automáticamente por el pipeline de GitLab CI/CD.
+      
+      ### 📦 Artefactos de Distribución:
+      - **Paquete:** `${ARCHIVE_NAME}`
+      - **Checksum:** `${ARCHIVE_NAME}.sha256`
+      
+      ### 🛡️ Características Incluidas:
+      - Dynamic Inventory con exclusión mutua (Mutex) anti-colisiones.
+      - Docker Compose hardening para hardware ARM64 / Orange Pi.
+      - Pipeline de Change Data Capture (CDC) con Apache Kafka y Debezium.
+      - Verificación automatizada de salud del clúster.
+    tag_name: "$CI_COMMIT_TAG"
+    ref: "$CI_COMMIT_TAG"
+    assets:
+      links:
+        - name: "Distribution Bundle (tar.gz)"
+          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/edge-infrastructure-orchestrator/${PKG_VERSION}/${ARCHIVE_NAME}"
+        - name: "SHA256 Checksum"
+          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/edge-infrastructure-orchestrator/${PKG_VERSION}/${ARCHIVE_NAME}.sha256"
