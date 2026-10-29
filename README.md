@@ -9,6 +9,8 @@
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![CI Quality Gate](https://github.com/sgloayza/edge-infrastructure-orchestrator/actions/workflows/lint.yml/badge.svg)](https://github.com/sgloayza/edge-infrastructure-orchestrator/actions)
 [![Docker Stacks](https://github.com/sgloayza/edge-infrastructure-orchestrator/actions/workflows/validate-docker.yml/badge.svg)](https://github.com/sgloayza/edge-infrastructure-orchestrator/actions)
+[![GitLab CI/CD](https://img.shields.io/badge/GitLab_CI-Enterprise_Runner-FC6D26?style=for-the-badge&logo=gitlab&logoColor=white)](.gitlab-ci.yml)
+[![Automated Releases](https://img.shields.io/badge/Automated_Releases-GitHub_%26_GitLab-10B981?style=for-the-badge&logo=githubactions&logoColor=white)](.github/workflows/release.yml)
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Live Simulator](https://img.shields.io/badge/Live_Simulator-Demo_Interactivo_Web-06B6D4?style=for-the-badge&logo=react&logoColor=white)](https://sgloayza.github.io/portfolio-web/#/simulator)
 
@@ -104,7 +106,9 @@ edge-infrastructure-orchestrator/
 ├── .github/
 │   └── workflows/
 │       ├── lint.yml                # Control de calidad: ansible-lint, yaml-lint, flake8
-│       └── validate-docker.yml     # Validación de sintaxis de Docker Compose
+│       ├── validate-docker.yml     # Validación de sintaxis de Docker Compose
+│       └── release.yml             # Release automático en GitHub con empaquetado y checksums
+├── .gitlab-ci.yml                  # Pipeline empresarial GitLab CI/CD (SemVer, Registry y Releases)
 │
 ├── ansible/
 │   ├── ansible.cfg                 # Ajustes de rendimiento (pipelining, profile_tasks)
@@ -168,6 +172,12 @@ edge-infrastructure-orchestrator/
 * **Protección del Almacenamiento:** Configura rotación de logs en JSON (`max-size: 50m`, `max-file: 5`) para evitar el colapso del disco en memorias flash eMMC / SD de dispositivos Edge.
 * **Prevención de OOM (Out of Memory):** Cuotas explícitas en `deploy.resources.limits` restringen el consumo máximo de memoria RAM y CPU por contenedor.
 * **Sincronización Horaria Determinista:** Montaje de `/etc/localtime:ro` e inyección de variables `TZ` en todos los microservicios.
+
+### 4. Automatización de CI/CD, Versionado Semántico y Releases (GitLab CI & GitHub Actions)
+* **Doble Pipeline Multi-Plataforma:** Soporte nativo tanto para entornos empresariales con **GitLab CI/CD** ([`.gitlab-ci.yml`](.gitlab-ci.yml)) como para flujos en **GitHub Actions** ([`.github/workflows/release.yml`](.github/workflows/release.yml)).
+* **Versionado Dinámico e Inmutable:** Extracción automática de la versión a partir de tags Git (`$CI_COMMIT_TAG` / `v1.0.0` ➡️ `1.0.0`) o generación de versiones de desarrollo `0.1.0-dev.${CI_PIPELINE_IID}` para builds intermedios.
+* **Empaquetado y Checksums Criptográficos:** Compresión automatizada del bundle de distribución (`.tar.gz`) que empaqueta roles, playbooks, docker compose y scripts, generando sus respectivas firmas de integridad `SHA256`.
+* **Publicación en Package Registry y Releases Desatendidos:** Integración directa con el Generic Package Registry y publicación automática del Release oficial al subir tags de producción (`v*.*.*`), sin requerir intervención manual.
 
 ---
 
